@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FOLIO_", env_file=".env", extra="ignore")
-    model: str = "deepseek-chat"
+    model: str = "deepseek-flash"
     base_url: str = "https://api.deepseek.com"
     api_key: str = ""
     data_dir: Path = Path("data")

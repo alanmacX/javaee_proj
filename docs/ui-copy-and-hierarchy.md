@@ -394,7 +394,7 @@ Folio
 | 字段一 | 服务地址 |
 | 默认值 / 占位 | https://api.deepseek.com |
 | 字段二 | 模型名称 |
-| 默认值 / 占位 | deepseek-chat |
+| 默认值 / 占位 | deepseek-flash |
 | 字段三 | API Key |
 | 未配置时占位 | 输入服务商提供的 API Key |
 | 已配置时占位 | 已保存，留空则继续使用 |
@@ -787,7 +787,7 @@ Folio
 | F213 | 服务地址 | 可见正文/标签；label ← div.sheet-body | `frontend/src/App.tsx:2241` |
 | F214 | https://api.deepseek.com | 属性 placeholder；label ← div.sheet-body | `frontend/src/App.tsx:2248` |
 | F215 | 模型名称 | 可见正文/标签；label ← div.sheet-body | `frontend/src/App.tsx:2252` |
-| F216 | deepseek-chat | 属性 placeholder；label ← div.sheet-body | `frontend/src/App.tsx:2258` |
+| F216 | deepseek-flash | 属性 placeholder；label ← div.sheet-body | `frontend/src/App.tsx:2258` |
 | F217 | API Key | 可见正文/标签；label ← div.sheet-body | `frontend/src/App.tsx:2262` |
 | F218 | 已保存，留空则继续使用 | 属性 placeholder；label ← div.sheet-body | `frontend/src/App.tsx:2271` |
 | F219 | 输入服务商提供的 API Key | 属性 placeholder；label ← div.sheet-body | `frontend/src/App.tsx:2272` |

@@ -40,6 +40,7 @@ export type Memory = {
   document_id: string;
 };
 export type Provider = { model: string; base_url: string; configured: boolean };
+export type ModelList = { models: string[] };
 export type AgentEvent = {
   seq: number;
   kind: string;

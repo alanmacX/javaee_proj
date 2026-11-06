@@ -43,6 +43,7 @@ import {
   type Conversation,
   type Doc,
   type Memory,
+  type ModelList,
   type Preview,
   type Provider,
   type Task,
@@ -2103,13 +2104,52 @@ function SettingsPage({
   onSaved: (p: Provider) => void;
 }) {
   const section = initialSection;
-  const [model, setModel] = useState(provider?.model || "deepseek-chat");
+  const [model, setModel] = useState(provider?.model || "deepseek-flash");
   const [url, setUrl] = useState(
     provider?.base_url || "https://api.deepseek.com",
   );
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [models, setModels] = useState<string[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [modelError, setModelError] = useState("");
+  const [modelNotice, setModelNotice] = useState("");
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
+  const modelQuery = model.trim().toLocaleLowerCase();
+  const matchingModels = [...models].sort((left, right) => {
+    const rank = (item: string) => {
+      const value = item.toLocaleLowerCase();
+      if (!modelQuery) return 1;
+      if (value === modelQuery) return 0;
+      if (value.startsWith(modelQuery)) return 1;
+      if (value.includes(modelQuery)) return 2;
+      return 3;
+    };
+    return rank(left) - rank(right);
+  });
+  async function fetchModels() {
+    setLoadingModels(true);
+    setModelError("");
+    setModelNotice("");
+    try {
+      const result = await api<ModelList>(
+        "/api/settings/models",
+        json("POST", { base_url: url, api_key: key }),
+      );
+      setModels(result.models);
+      if (result.models.length) {
+        setModelNotice(`已获取 ${result.models.length} 个模型，可点击选择`);
+        setModelPickerOpen(true);
+      } else {
+        setModelError("接口没有返回可用模型");
+      }
+    } catch (e) {
+      setModelError(e instanceof Error ? e.message : "获取模型列表失败");
+    } finally {
+      setLoadingModels(false);
+    }
+  }
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (section !== "model") return;
@@ -2222,28 +2262,19 @@ function SettingsPage({
               接口地址 (Base URL)
               <input
                 required
-                disabled={saving}
+                disabled={saving || loadingModels}
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://api.deepseek.com"
               />
-            </label>
-            <label>
-              模型标识 (Model ID)
-              <input
-                required
-                disabled={saving}
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="deepseek-chat"
-              />
+              <p className="form-note">填写服务商 API 根地址，例如 https://api.deepseek.com。</p>
             </label>
             <label>
               API Key
               <input
                 type="password"
-                disabled={saving}
+                disabled={saving || loadingModels}
                 autoComplete="off"
                 value={key}
                 onChange={(e) => setKey(e.target.value)}
@@ -2253,10 +2284,71 @@ function SettingsPage({
                     : "粘贴 API Key (sk-...)"
                 }
               />
+              <p className="form-note">
+                支持 OpenAI 兼容接口（如 DeepSeek）。API Key 仅保存在本地。
+              </p>
             </label>
-            <p className="form-note">
-              支持 OpenAI 兼容接口（如 DeepSeek）。API Key 仅保存在本地。
-            </p>
+            <label>
+              模型标识 (Model ID)
+              <div className="model-picker">
+                <div className="model-combobox">
+                  <input
+                    required
+                    disabled={saving || loadingModels}
+                    value={model}
+                    aria-haspopup="listbox"
+                    aria-expanded={modelPickerOpen}
+                    onFocus={() => setModelPickerOpen(true)}
+                    onBlur={() => window.setTimeout(() => setModelPickerOpen(false), 120)}
+                    onChange={(e) => {
+                      setModel(e.target.value);
+                    }}
+                    placeholder="deepseek-flash"
+                  />
+                  <button
+                    type="button"
+                    className="model-toggle"
+                    aria-label="展开模型列表"
+                    aria-expanded={modelPickerOpen}
+                    disabled={saving || loadingModels || !models.length}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => setModelPickerOpen((open) => !open)}
+                  >
+                    <ChevronDown size="var(--icon-sm)" />
+                  </button>
+                  {modelPickerOpen && models.length > 0 && (
+                    <div className="model-suggestions" role="listbox" aria-label="可用模型">
+                      {matchingModels.map((item) => (
+                        <button
+                          type="button"
+                          key={item}
+                          role="option"
+                          aria-selected={item.toLocaleLowerCase() === modelQuery}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setModel(item);
+                            setModelPickerOpen(false);
+                          }}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="secondary model-fetch"
+                  disabled={saving || loadingModels || !url.trim()}
+                  onClick={fetchModels}
+                >
+                  {loadingModels && <LoaderCircle className="spin" size="var(--icon-sm)" />}
+                  {loadingModels ? "获取中" : "获取模型列表"}
+                </button>
+              </div>
+              {modelNotice && <p className="form-note model-fetch-status">{modelNotice}</p>}
+            </label>
+            {modelError && <p className="inline-error" role="alert">{modelError}</p>}
             {error && (
               <p className="inline-error" role="alert">
                 {error}
@@ -2267,9 +2359,9 @@ function SettingsPage({
             <button
               type="button"
               className="secondary"
-              disabled={saving}
+              disabled={saving || loadingModels}
               onClick={() => {
-                setModel(provider?.model || "deepseek-chat");
+                setModel(provider?.model || "deepseek-flash");
                 setUrl(provider?.base_url || "https://api.deepseek.com");
                 setKey("");
                 setError("");
@@ -2277,7 +2369,7 @@ function SettingsPage({
             >
               重置
             </button>
-            <button type="submit" className="primary" disabled={saving}>
+            <button type="submit" className="primary" disabled={saving || loadingModels}>
               {saving && (
                 <LoaderCircle className="spin" size="var(--icon-md)" />
               )}

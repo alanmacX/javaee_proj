@@ -2,6 +2,8 @@ import json
 import logging
 import os
 import sqlite3
+import urllib.error
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -43,6 +45,11 @@ class MemoryInput(BaseModel):
 
 class ProviderInput(BaseModel):
     model: str = Field(min_length=1, max_length=200)
+    base_url: str = Field(min_length=1, max_length=1000)
+    api_key: str = Field(default="", max_length=2000)
+
+
+class ModelListInput(BaseModel):
     base_url: str = Field(min_length=1, max_length=1000)
     api_key: str = Field(default="", max_length=2000)
 
@@ -165,6 +172,49 @@ def create_app(settings: Settings | None = None, model=None):
             "base_url": settings.base_url,
             "configured": bool(settings.api_key or model),
         }
+
+    @app.post("/api/settings/models")
+    def list_models(body: ModelListInput):
+        parsed = urlparse(body.base_url)
+        if (
+            not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("接口地址格式不正确")
+        if parsed.scheme != "https" and not (
+            parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+        ):
+            raise ValueError("远程接口需使用 HTTPS，仅本地接口支持 HTTP")
+        api_key = body.api_key.strip() or settings.api_key
+        headers = {"Accept": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        request = urllib.request.Request(f"{body.base_url.rstrip('/')}/models", headers=headers)
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                payload = json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            if exc.code in {401, 403}:
+                raise HTTPException(502, "模型服务认证失败，请检查 API Key")
+            if exc.code == 404:
+                raise HTTPException(502, "模型列表接口不存在，请填写服务商 API 根地址")
+            raise HTTPException(502, f"模型服务请求失败（HTTP {exc.code}）")
+        except (urllib.error.URLError, TimeoutError):
+            raise HTTPException(502, "无法连接模型服务，请检查接口地址或网络")
+        except (json.JSONDecodeError, ValueError):
+            raise HTTPException(502, "模型服务返回的数据格式不正确")
+        if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+            raise HTTPException(502, "模型服务返回的数据格式不正确")
+        models = []
+        for item in payload["data"]:
+            if isinstance(item, dict) and isinstance(item.get("id"), str) and item["id"].strip():
+                model_id = item["id"].strip()
+                if model_id not in models:
+                    models.append(model_id)
+        return {"models": models}
 
     @app.put("/api/settings")
     def save_settings(body: ProviderInput):

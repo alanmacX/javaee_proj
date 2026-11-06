@@ -69,6 +69,7 @@ uv run python scripts/demo.py --prepare-only
 | --- | --- | --- |
 | GET | `/health` | 服务与模型配置状态 |
 | GET / PUT | `/api/settings` | 读取 / 保存模型配置，密钥只写 |
+| POST | `/api/settings/models` | 使用当前填写的 Base URL / API Key 获取 OpenAI 兼容模型列表，不保存配置 |
 | GET | `/api/workspaces` | 个人空间列表 |
 | POST | `/api/workspaces` | 创建工作区，JSON：`{"name":"我的资料"}` |
 | GET / POST | `/api/workspaces/{w}/conversations` | 列出 / 创建会话，创建时传 `{"name":"新对话"}` |
