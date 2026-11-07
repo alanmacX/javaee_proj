@@ -3083,6 +3083,9 @@ body {
   font-size: var(--font-body);
   margin-bottom: var(--space-6);
 }
+.settings-fields > label > .form-note {
+  margin: var(--space-3) 0 0;
+}
 .settings-fields input {
   display: block;
   appearance: none;
@@ -3094,6 +3097,92 @@ body {
   border: var(--stroke-width) solid transparent;
   background: var(--material-field);
   box-shadow: var(--elevation-dialog-field);
+}
+.model-picker {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.model-combobox {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+}
+.model-combobox input {
+  padding-right: calc(var(--space-4) + var(--icon-md));
+}
+.model-toggle {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  display: grid;
+  place-items: center;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-label-secondary);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+.model-toggle:hover:not(:disabled),
+.model-toggle[aria-expanded="true"] {
+  background: var(--material-field);
+  color: var(--color-label-primary);
+}
+.model-toggle:active:not(:disabled) {
+  transform: translateY(-50%) scale(var(--motion-press-scale));
+}
+.model-toggle:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.model-suggestions {
+  position: absolute;
+  z-index: var(--z-content);
+  left: 0;
+  right: 0;
+  top: calc(100% + var(--space-2));
+  display: grid;
+  max-height: var(--layout-menu-max-height);
+  overflow: auto;
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--material-sheet-solid);
+  box-shadow: var(--elevation-menu);
+}
+.model-suggestions button {
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  color: var(--color-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.model-suggestions button:hover,
+.model-suggestions button[aria-selected="true"] {
+  background: var(--material-field);
+}
+.model-empty {
+  margin: var(--space-2) var(--space-3);
+  color: var(--color-label-secondary);
+  font-size: var(--font-small);
+}
+.model-picker input {
+  margin-top: 0;
+}
+.model-fetch {
+  flex: 0 0 auto;
+  min-height: var(--control-touch);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
 }
 .settings-fields .environment-picker legend {
   font-size: var(--font-body);
@@ -3176,6 +3265,15 @@ body {
   }
   .settings-page .appearance-segments > button {
     white-space: nowrap;
+  }
+  .model-picker {
+    flex-direction: column;
+  }
+  .model-fetch {
+    width: 100%;
+  }
+  .model-suggestions {
+    right: 0;
   }
 }
 .page-settings .topbar-actions,

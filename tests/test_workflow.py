@@ -10,6 +10,7 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_openai import ChatOpenAI
 from openpyxl import Workbook, load_workbook
 
+import folio.api as api_module
 from folio.api import create_app
 from folio.config import Settings
 from folio.documents import parse
@@ -50,7 +51,7 @@ def wait_task(client, base, task_id):
 
 def test_persistent_conversation_and_confirmed_memory(tmp_path):
     model = ScriptedModel(
-        model="deepseek-chat", api_key="test", profile={"max_input_tokens": 64000}
+        model="deepseek-flash", api_key="test", profile={"max_input_tokens": 64000}
     )
     app = create_app(Settings(data_dir=tmp_path), model=model)
     with TestClient(app) as client:
@@ -98,7 +99,7 @@ def test_persistent_conversation_and_confirmed_memory(tmp_path):
 
 def test_specialist_delegation_uses_read_only_tools(tmp_path):
     model = ScriptedModel(
-        model="deepseek-chat", api_key="test", profile={"max_input_tokens": 64000}
+        model="deepseek-flash", api_key="test", profile={"max_input_tokens": 64000}
     )
     model.responses = [
         call("task", {"subagent_type": "evidence-reader", "description": "查找姓名的来源"}, 1),
@@ -167,6 +168,56 @@ def test_provider_settings_persist_without_exposing_key(tmp_path):
         assert "api_key" not in settings
 
 
+def test_model_list_uses_draft_credentials_and_normalizes_ids(tmp_path, monkeypatch):
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"data":[{"id":"alpha"},{"id":"alpha"},{"id":"  beta "},{"name":"ignored"}]}'
+
+    captured = {}
+
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["authorization"] = request.get_header("Authorization")
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr(api_module.urllib.request, "urlopen", fake_urlopen)
+    with TestClient(create_app(Settings(data_dir=tmp_path, api_key="saved-key"))) as client:
+        response = client.post(
+            "/api/settings/models",
+            json={"base_url": "https://example.com/v1", "api_key": "draft-key"},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"models": ["alpha", "beta"]}
+        assert captured == {
+            "url": "https://example.com/v1/models",
+            "authorization": "Bearer draft-key",
+            "timeout": 15,
+        }
+        assert not (tmp_path / "provider.json").exists()
+
+
+def test_model_list_reports_authentication_failure_without_exposing_key(tmp_path, monkeypatch):
+    def fake_urlopen(request, timeout):
+        raise api_module.urllib.error.HTTPError(request.full_url, 401, "Unauthorized", {}, None)
+
+    monkeypatch.setattr(api_module.urllib.request, "urlopen", fake_urlopen)
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        response = client.post(
+            "/api/settings/models",
+            json={"base_url": "https://api.deepseek.com", "api_key": "secret-key"},
+        )
+    assert response.status_code == 502
+    assert response.json()["detail"] == "模型服务认证失败，请检查 API Key"
+    assert "secret-key" not in response.text
+
+
 def test_document_text_cannot_authorize_personal_memory(tmp_path):
     from folio.store import Store
 
@@ -216,7 +267,7 @@ def template(suffix):
 )
 def test_harness_upload_fill_download(tmp_path, suffix, address):
     model = ScriptedModel(
-        model="deepseek-chat", api_key="test", profile={"max_input_tokens": 64000}
+        model="deepseek-flash", api_key="test", profile={"max_input_tokens": 64000}
     )
     app = create_app(Settings(data_dir=tmp_path), model=model)
     with TestClient(app) as client:
